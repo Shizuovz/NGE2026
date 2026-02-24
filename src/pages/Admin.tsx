@@ -155,7 +155,7 @@ const Admin = () => {
         const mainStr = Array.isArray(team.team_members) ? team.team_members.filter((m:any) => !m.is_substitute).map((p: any) => `${p.ign || 'N/A'} (${p.game_id || 'N/A'})`).join(' | ') : '';
         const subStr = Array.isArray(team.team_members) ? team.team_members.filter((m:any) => m.is_substitute).map((p: any) => `${p.ign || 'N/A'} (${p.game_id || 'N/A'})`).join(' | ') : '';
         return [
-          team.registration_id, team.team_name, team.registration_type, team.game_name, team.college_name || 'N/A',
+          team.registration_id, team.team_name, team.registration_type, team.games?.name || 'N/A', team.colleges?.name || 'N/A',
           team.captain_name, team.captain_email, team.captain_phone, team.status, team.main_players, team.substitutes,
           `"${mainStr}"`, `"${subStr}"`, new Date(team.created_at).toLocaleString()
         ];
