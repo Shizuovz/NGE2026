@@ -1,0 +1,117 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@layer base {
+  :root {
+    --background: 220 20% 97%;
+    --foreground: 220 30% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 30% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 30% 10%;
+
+    --primary: 250 70% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 180 60% 45%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 220 15% 92%;
+    --muted-foreground: 220 10% 45%;
+
+    --accent: 45 100% 55%;
+    --accent-foreground: 220 30% 10%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 15% 88%;
+    --input: 220 15% 88%;
+    --ring: 250 70% 50%;
+
+    --radius: 0.5rem;
+
+    --hero-gradient: linear-gradient(135deg, hsl(250 70% 15%) 0%, hsl(220 60% 8%) 50%, hsl(180 50% 12%) 100%);
+    --section-dark: 220 30% 8%;
+    --section-dark-foreground: 220 15% 92%;
+    --gaming-glow: 250 70% 50%;
+    --gaming-cyan: 180 60% 45%;
+    --gaming-gold: 45 100% 55%;
+  }
+
+  .dark {
+    --background: 220 30% 6%;
+    --foreground: 220 15% 92%;
+
+    --card: 220 25% 10%;
+    --card-foreground: 220 15% 92%;
+
+    --popover: 220 25% 10%;
+    --popover-foreground: 220 15% 92%;
+
+    --primary: 250 70% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 180 60% 50%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 220 20% 15%;
+    --muted-foreground: 220 10% 55%;
+
+    --accent: 45 100% 55%;
+    --accent-foreground: 220 30% 10%;
+
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 20% 18%;
+    --input: 220 20% 18%;
+    --ring: 250 70% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Rajdhani', sans-serif;
+  }
+}
+
+@layer utilities {
+  .section-dark {
+    background: hsl(var(--section-dark));
+    color: hsl(var(--section-dark-foreground));
+  }
+
+  .text-gradient {
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--gaming-cyan)));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .glow-primary {
+    box-shadow: 0 0 20px hsl(var(--gaming-glow) / 0.3), 0 0 60px hsl(var(--gaming-glow) / 0.1);
+  }
+
+  .glow-cyan {
+    box-shadow: 0 0 20px hsl(var(--gaming-cyan) / 0.3), 0 0 60px hsl(var(--gaming-cyan) / 0.1);
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
