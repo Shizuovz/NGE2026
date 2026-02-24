@@ -336,10 +336,10 @@ const Admin = () => {
                         <Badge variant="outline" className="text-xs">
                           {team.registration_type === 'college' ? '🏫 College' : '🌟 Open Category'}
                         </Badge>
-                        {team.college_name && (
+                        {team.colleges?.name && (
                           <>
                             <span className="text-sm text-muted-foreground">•</span>
-                            <span className="text-sm text-muted-foreground">{team.college_name}</span>
+                            <span className="text-sm text-muted-foreground">{team.colleges.name}</span>
                           </>
                         )}
                       </div>
