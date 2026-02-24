@@ -3,9 +3,9 @@ import { motion } from "framer-motion";
 
 const stats = [
   { value: 200000, prefix: "₹", suffix: "", label: "Prize Pool" },
-  { value: 6000, prefix: "", suffix: "+", label: "Expected Footfall" },
-  { value: 200000, prefix: "", suffix: "+", label: "Digital Reach" },
-  { value: 2, prefix: "", suffix: "", label: "Days" },
+  { value: 20, prefix: "", suffix: "+", label: "Colleges" },
+  { value: 50, prefix: "", suffix: "+", label: "Teams Expected" },
+  { value: 2, prefix: "", suffix: "", label: "Featured Games" },
 ];
 
 function useCountUp(target: number, inView: boolean) {

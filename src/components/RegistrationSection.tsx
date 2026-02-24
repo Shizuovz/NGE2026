@@ -19,6 +19,19 @@ const RegistrationSection = () => {
   const [colleges, setColleges] = useState([]);
   const [sponsorshipTiers, setSponsorshipTiers] = useState([]);
   
+  // Helper function to map sponsor type string to tier ID
+  const getSponsorshipTierId = (sponsorType: string, tiers: any[]) => {
+    // Direct mapping for the exact dropdown values
+    const directMapping: { [key: string]: number } = {
+      'Title Sponsor': 1,
+      'Powered By Sponsor': 2,
+      'Associate Sponsor': 3,
+      'Category Partner': 4
+    };
+    
+    return directMapping[sponsorType] || null;
+  };
+  
   const [formData, setFormData] = useState({
     teamName: "",
     collegeName: "",
@@ -153,15 +166,15 @@ const RegistrationSection = () => {
         const sponsorData = {
           registrationId,
           companyName: formData.companyName,
-          sponsorshipTierId: formData.sponsorType,
+          sponsorshipTierId: getSponsorshipTierId(formData.sponsorType, sponsorshipTiers),
           contactPerson: formData.contactPerson,
           contactEmail: formData.companyEmail,
           contactPhone: formData.companyPhone,
           message: formData.message
         };
         
-        result = await apiService.submitSponsorRegistration(sponsorData);
-        toast.success(`Sponsor registration successful! Your registration ID is: ${result.registrationId}`);
+        await apiService.submitSponsorRegistration(sponsorData);
+        toast.success(`Sponsor registration successful! Your registration ID is: ${registrationId}`);
         
       } else if (registrationType === 'visitor') {
         // Visitor registration
@@ -576,8 +589,8 @@ const RegistrationSection = () => {
                 </Label>
               </div>
 
-              <Button type="submit" className="w-full" disabled={!formData.agreeTerms}>
-                Submit Open Category Registration
+              <Button type="submit" className="w-full">
+                Register Team
               </Button>
             </form>
           </CardContent>
@@ -596,15 +609,15 @@ const RegistrationSection = () => {
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <Label htmlFor="sponsorType">Sponsorship Tier *</Label>
-                <Select value={formData.sponsorType} onValueChange={(value) => handleInputChange("sponsorType", value)}>
+                <Select value={formData.sponsorType} onValueChange={(value) => setFormData({ ...formData, sponsorType: value })}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select sponsorship tier" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="title">Title Sponsor (₹5,00,000+)</SelectItem>
-                    <SelectItem value="powered-by">Powered By Sponsor (₹2,50,000)</SelectItem>
-                    <SelectItem value="associate">Associate Sponsor (₹1,00,000)</SelectItem>
-                    <SelectItem value="category">Category Partner (Custom/In-Kind)</SelectItem>
+                    <SelectItem value="Title Sponsor">Title Sponsor (₹5,00,000+)</SelectItem>
+                    <SelectItem value="Powered By Sponsor">Powered By Sponsor (₹2,50,000)</SelectItem>
+                    <SelectItem value="Associate Sponsor">Associate Sponsor (₹1,00,000)</SelectItem>
+                    <SelectItem value="Category Partner">Category Partner (Custom/In-Kind)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -661,7 +674,7 @@ const RegistrationSection = () => {
                   id="message"
                   value={formData.message}
                   onChange={(e) => handleInputChange("message", e.target.value)}
-                  placeholder="Tell us about your brand and partnership interests..."
+                  placeholder="Tell us about your sponsorship interests or any specific requirements"
                   rows={4}
                 />
               </div>
@@ -773,20 +786,19 @@ const RegistrationSection = () => {
   }
 
   return (
-    <section id="register" className="py-20 md:py-28 bg-background">
+    <section id="register" className="py-20 bg-gradient-to-b from-background to-muted/30">
       <div className="container mx-auto px-4">
         <motion.div
-          className="text-center mb-14"
           initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="text-center mb-12"
         >
-          <span className="text-sm font-semibold uppercase tracking-widest text-primary mb-2 block">Get Involved</span>
-          <h2 className="font-['Rajdhani'] text-4xl md:text-5xl font-bold text-foreground">
-            Register <span className="text-gradient">Now</span>
+          <h2 className="font-['Rajdhani'] text-4xl md:text-5xl font-bold mb-4">
+            Register for <span className="text-gradient">NGE 2026</span>
           </h2>
-          <p className="text-muted-foreground mt-4 max-w-xl mx-auto">
-            Whether you're a competitor, sponsor, or spectator — there's a place for you at NGE 2026.
+          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+            Join Northeast India's biggest gaming expo. Choose your registration type below.
           </p>
         </motion.div>
 
@@ -795,7 +807,6 @@ const RegistrationSection = () => {
             className="rounded-2xl border border-border bg-card p-8 text-center hover:shadow-xl transition-all group cursor-pointer"
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
             transition={{ delay: 0 * 0.15 }}
             onClick={() => setRegistrationType("college")}
           >

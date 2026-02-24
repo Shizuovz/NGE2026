@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabaseApiService } from '@/services/supabase-api';
 import { toast } from 'sonner';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
@@ -14,7 +15,10 @@ import {
   Download, 
   RefreshCw,
   Building2,
-  LogOut
+  LogOut,
+  Mail,
+  Phone,
+  Gamepad2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -22,13 +26,16 @@ const Admin = () => {
   const { isAuthenticated, isLoading, logout } = useAdminAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
-  const [stats, setStats] = useState(null);
-  const [teams, setTeams] = useState([]);
-  const [sponsors, setSponsors] = useState([]);
+  const [stats, setStats] = useState<any[] | null>(null);
+  const [teams, setTeams] = useState<any[]>([]);
+  const [sponsors, setSponsors] = useState<any>({ sponsors: [], totals: { total_sponsors: 0, confirmed_sponsors: 0, potential_revenue: 0 } });
+  const [sponsorFilters, setSponsorFilters] = useState({ status: null, tier: null });
+  const [teamFilters, setTeamFilters] = useState({ status: null, type: null, game: null });
+  const [visitors, setVisitors] = useState<any>({ visitors: [], totals: { total_visitors: 0, confirmed_visitors: 0 } });
+  const [visitorFilters, setVisitorFilters] = useState({ status: null });
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState(new Date());
 
-  // Redirect to login if not authenticated
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       navigate('/admin/login');
@@ -41,18 +48,38 @@ const Admin = () => {
     }
   }, [isAuthenticated]);
 
+  useEffect(() => {
+    if (isAuthenticated && activeTab === 'sponsors') {
+      loadSponsorData();
+    }
+  }, [sponsorFilters, isAuthenticated, activeTab]);
+
+  useEffect(() => {
+    if (isAuthenticated && activeTab === 'teams') {
+      loadTeamData();
+    }
+  }, [teamFilters, isAuthenticated, activeTab]);
+
+  useEffect(() => {
+    if (isAuthenticated && activeTab === 'visitors') {
+      loadVisitorData();
+    }
+  }, [visitorFilters, isAuthenticated, activeTab]);
+
   const loadAdminData = async () => {
     setLoading(true);
     try {
-      const [overviewStats, teamData, sponsorData] = await Promise.all([
+      const [overviewStats, teamData, sponsorData, visitorData] = await Promise.all([
         supabaseApiService.getOverviewStats(),
-        supabaseApiService.getTeamStats(),
-        supabaseApiService.getSponsorStats()
+        supabaseApiService.getTeamStats(teamFilters),
+        supabaseApiService.getSponsorStats(sponsorFilters),
+        supabaseApiService.getVisitorStats(visitorFilters)
       ]);
       
       setStats(overviewStats);
       setTeams(teamData);
       setSponsors(sponsorData);
+      setVisitors(visitorData);
       setLastRefresh(new Date());
     } catch (error) {
       console.error('Failed to load admin data:', error);
@@ -62,530 +89,397 @@ const Admin = () => {
     }
   };
 
-  const handleRefresh = () => {
-    loadAdminData();
-  };
-
-  const handleExportData = async (type: 'teams' | 'sponsors' | 'visitors') => {
+  const loadSponsorData = async () => {
     try {
-      let data;
-      let filename;
-      
-      switch (type) {
-        case 'teams':
-          data = await supabaseApiService.getTeamStats();
-          filename = 'nge-2026-team-registrations.csv';
-          break;
-        case 'sponsors':
-          data = await supabaseApiService.getSponsorStats();
-          filename = 'nge-2026-sponsor-registrations.csv';
-          break;
-        case 'visitors':
-          const visitorData = await supabaseApiService.getOverviewStats();
-          data = visitorData.filter(stat => stat.type === 'visitor');
-          filename = 'nge-2026-visitor-registrations.csv';
-          break;
-      }
-      
-      const csv = convertToCSV(data, type);
-      downloadCSV(csv, filename);
-      toast.success(`Exported ${filename}`);
+      const sponsorData = await supabaseApiService.getSponsorStats(sponsorFilters);
+      setSponsors(sponsorData);
     } catch (error) {
-      console.error('Export failed:', error);
-      toast.error('Failed to export data');
+      toast.error('Failed to load sponsor data');
     }
   };
 
-  const convertToCSV = (data: any[], type: string) => {
+  const loadTeamData = async () => {
+    try {
+      const teamData = await supabaseApiService.getTeamStats(teamFilters);
+      setTeams(teamData);
+    } catch (error) {
+      toast.error('Failed to load team data');
+    }
+  };
+
+  const loadVisitorData = async () => {
+    try {
+      const visitorData = await supabaseApiService.getVisitorStats(visitorFilters);
+      setVisitors(visitorData);
+    } catch (error) {
+      toast.error('Failed to load visitor data');
+    }
+  };
+
+  const handleRefresh = () => loadAdminData();
+
+  const handleUpdateSponsorStatus = async (sponsorId: number, newStatus: string) => {
+    try {
+      await supabaseApiService.updateSponsorStatus(sponsorId, newStatus);
+      toast.success('Sponsor status updated');
+      loadSponsorData();
+    } catch (error) {
+      toast.error('Update failed');
+    }
+  };
+
+  const handleUpdateTeamStatus = async (teamId: number, newStatus: string) => {
+    try {
+      await supabaseApiService.updateTeamStatus(teamId, newStatus);
+      toast.success('Team status updated');
+      loadAdminData();
+    } catch (error) {
+      toast.error('Update failed');
+    }
+  };
+
+  const handleUpdateVisitorStatus = async (visitorId: number, newStatus: string) => {
+    try {
+      await supabaseApiService.updateVisitorStatus(visitorId, newStatus);
+      toast.success('Visitor status updated');
+      loadVisitorData();
+    } catch (error) {
+      toast.error('Update failed');
+    }
+  };
+
+  const convertToCSV = (data: any, type: string) => {
     if (type === 'teams') {
-      const headers = ['Registration ID', 'Team Name', 'Type', 'Game', 'College', 'Captain Name', 'Captain Email', 'Captain Phone', 'Status', 'Players', 'Substitutes', 'Created At'];
-      const rows = data.map(team => [
-        team.registration_id,
-        team.team_name,
-        team.registration_type,
-        team.game_name,
-        team.college_name || 'N/A',
-        team.captain_name,
-        team.captain_email,
-        team.captain_phone,
-        team.status,
-        team.main_players,
-        team.substitutes,
-        new Date(team.created_at).toLocaleString()
-      ]);
+      const headers = ['Reg ID', 'Team Name', 'Type', 'Game', 'College', 'Captain', 'Email', 'Phone', 'Status', 'Main Count', 'Sub Count', 'Main Players', 'Substitutes', 'Created'];
+      const rows = (data as any[]).map(team => {
+        const mainStr = Array.isArray(team.team_members) ? team.team_members.filter((m:any) => !m.is_substitute).map((p: any) => `${p.ign || 'N/A'} (${p.game_id || 'N/A'})`).join(' | ') : '';
+        const subStr = Array.isArray(team.team_members) ? team.team_members.filter((m:any) => m.is_substitute).map((p: any) => `${p.ign || 'N/A'} (${p.game_id || 'N/A'})`).join(' | ') : '';
+        return [
+          team.registration_id, team.team_name, team.registration_type, team.game_name, team.college_name || 'N/A',
+          team.captain_name, team.captain_email, team.captain_phone, team.status, team.main_players, team.substitutes,
+          `"${mainStr}"`, `"${subStr}"`, new Date(team.created_at).toLocaleString()
+        ];
+      });
       return [headers, ...rows];
     } else if (type === 'sponsors') {
-      const headers = ['Registration ID', 'Company Name', 'Tier', 'Contact Person', 'Email', 'Phone', 'Status', 'Created At'];
-      const rows = data.sponsors.map(sponsor => [
-        sponsor.registration_id,
-        sponsor.company_name,
-        sponsor.tier_name || 'N/A',
-        sponsor.contact_person,
-        sponsor.contact_email,
-        sponsor.contact_phone,
-        sponsor.status,
-        new Date(sponsor.created_at).toLocaleString()
+      const headers = ['ID', 'Company', 'Tier', 'Price', 'Contact', 'Phone', 'Email', 'Status', 'Created'];
+      const rows = (data.sponsors || []).map((s: any) => [
+        s.registration_id, s.company_name, s.sponsorship_tiers?.name, s.sponsorship_tiers?.price,
+        s.contact_person, s.contact_phone, s.contact_email, s.status, new Date(s.created_at).toLocaleString()
       ]);
       return [headers, ...rows];
     } else if (type === 'visitors') {
-      const headers = ['Registration ID', 'Full Name', 'Email', 'Phone', 'Status', 'Created At'];
-      const rows = data.map(visitor => [
-        visitor.registration_id,
-        visitor.full_name,
-        visitor.email,
-        visitor.phone,
-        visitor.status,
-        new Date(visitor.created_at).toLocaleString()
+      const headers = ['ID', 'Name', 'Email', 'Phone', 'Status', 'Created'];
+      const rows = (data.visitors || []).map((v: any) => [
+        v.registration_id, v.full_name, v.email, v.phone, v.status, new Date(v.created_at).toLocaleString()
       ]);
       return [headers, ...rows];
     }
-    return [[], []];
+    return [];
   };
 
-  const downloadCSV = (csv: string[], filename: string) => {
+  const downloadCSV = (csv: any[][], filename: string) => {
     const csvContent = csv.map(row => row.join(',')).join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
   };
 
-  const getStatusBadge = (status: string) => {
-    const color = status === 'confirmed' ? 'bg-green-500' : status === 'pending' ? 'bg-yellow-500' : 'bg-red-500';
-    return <Badge className={`${color} text-white`}>{status}</Badge>;
+  const handleExportData = (type: 'teams' | 'sponsors' | 'visitors') => {
+    const data = type === 'teams' ? teams : type === 'sponsors' ? sponsors : visitors;
+    const csv = convertToCSV(data, type);
+    downloadCSV(csv, `nge-2026-${type}.csv`);
+    toast.success(`Exported ${type}`);
   };
 
-  // Show loading state while checking authentication
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Checking authentication...</p>
-        </div>
-      </div>
-    );
-  }
+  const getStatusBadge = (status: string) => {
+    const colors: any = { confirmed: 'bg-green-500', pending: 'bg-yellow-500', rejected: 'bg-red-500', contacted: 'bg-orange-500' };
+    return <Badge className={`${colors[status] || 'bg-slate-500'} text-white capitalize`}>{status}</Badge>;
+  };
 
-  // Return null if not authenticated (will redirect)
-  if (!isAuthenticated) {
-    return null;
-  }
+  if (isLoading) return <div className="min-h-screen flex items-center justify-center"><RefreshCw className="animate-spin" /></div>;
+  if (!isAuthenticated) return null;
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="flex items-center gap-3">
-              <img 
-                src="/NGE.png" 
-                alt="NGE 2026 Logo" 
-                className="h-10 w-auto"
-              />
-              <div>
-                <h1 className="font-['Rajdhani'] text-3xl md:text-4xl font-bold text-foreground">
-                  Admin <span className="text-gradient">Dashboard</span>
-                </h1>
-                <p className="text-muted-foreground">
-                  Manage NGE 2026 registrations and view statistics
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button onClick={handleRefresh} variant="outline" size="sm">
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
-              </Button>
-              <Button onClick={logout} variant="outline" size="sm">
-                <LogOut className="h-4 w-4 mr-2" />
-                Logout
-              </Button>
-              <span className="text-sm text-muted-foreground">
-                Last updated: {lastRefresh.toLocaleTimeString()}
-              </span>
+    <div className="min-h-screen bg-background p-4 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-8">
+        
+        {/* Responsive Header */}
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+          <div className="flex items-center gap-4">
+            <img src="/NGE.png" alt="Logo" className="h-12 w-auto" />
+            <div>
+              <h1 className="text-3xl font-bold font-['Rajdhani']">Admin <span className="text-primary">Dashboard</span></h1>
+              <p className="text-muted-foreground text-sm">NGE 2026 Central Command</p>
             </div>
           </div>
-        </motion.div>
+          <div className="flex flex-wrap gap-2 w-full lg:w-auto">
+            <Button onClick={handleRefresh} variant="outline" size="sm" className="flex-1 lg:flex-none"><RefreshCw className="mr-2 h-4 w-4" /> Refresh</Button>
+            <Button onClick={logout} variant="outline" size="sm" className="flex-1 lg:flex-none text-destructive"><LogOut className="mr-2 h-4 w-4" /> Logout</Button>
+          </div>
+        </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Trophy className="h-5 w-5 text-primary" />
-                Registration Overview
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="text-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {stats?.map((stat) => (
+            <Card key={stat.type} className="bg-card/50">
+              <CardContent className="pt-6">
+                <div className="text-xs font-bold uppercase text-muted-foreground mb-1">{stat.type.replace('_', ' ')}</div>
+                <div className="text-3xl font-bold mb-2">{stat.total_registrations}</div>
+                <div className="flex gap-3 text-xs font-medium">
+                  <span className="text-green-500">Confirmed: {stat.confirmed}</span>
+                  <span className="text-yellow-600">Pending: {stat.pending}</span>
                 </div>
-              ) : stats ? (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {stats.map((stat) => (
-                    <div key={stat.type} className="text-center">
-                      <div className="text-2xl font-bold text-foreground mb-1">
-                        {stat.total_registrations}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <div className="overflow-x-auto">
+            <TabsList className="inline-flex w-full md:grid md:grid-cols-4 min-w-[600px]">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="teams">Teams ({teams.length})</TabsTrigger>
+              <TabsTrigger value="sponsors">Sponsors ({sponsors.sponsors.length})</TabsTrigger>
+              <TabsTrigger value="visitors">Visitors</TabsTrigger>
+            </TabsList>
+          </div>
+
+          <TabsContent value="overview" className="pt-6">
+             <div className="grid md:grid-cols-2 gap-6">
+                <Card><CardHeader><CardTitle>Latest Activity</CardTitle></CardHeader>
+                <CardContent><p className="text-sm text-muted-foreground">System is live. Last sync: {lastRefresh.toLocaleTimeString()}</p></CardContent></Card>
+                <Card><CardHeader><CardTitle>Revenue Overview</CardTitle></CardHeader>
+                <CardContent><div className="text-2xl font-bold text-blue-500">₹{sponsors.totals.potential_revenue.toLocaleString()}</div><p className="text-xs text-muted-foreground">Potential from all tiers</p></CardContent></Card>
+             </div>
+             
+             {/* Game Categories Overview */}
+             <Card className="mt-6">
+               <CardHeader>
+                 <CardTitle className="flex items-center gap-2">
+                   <Gamepad2 className="h-5 w-5 text-blue-600" />
+                   Team Registrations by Game
+                 </CardTitle>
+               </CardHeader>
+               <CardContent>
+                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                   {['bgmi', 'mobile_legends', 'valorant', 'cs_go', 'fifa'].map((game) => {
+                     const gameTeams = teams.filter(team => team.games?.name === game);
+                     const confirmedGameTeams = gameTeams.filter(team => team.status === 'confirmed');
+                     const displayName = game === 'bgmi' ? 'BGMI' : 
+                                      game === 'mobile_legends' ? 'Mobile Legends' :
+                                      game === 'cs_go' ? 'CS:GO' :
+                                      game.charAt(0).toUpperCase() + game.slice(1);
+                     return (
+                       <div key={game} className="text-center p-4 bg-muted/30 rounded-lg border">
+                         <div className="text-lg font-bold mb-1">🎮 {displayName}</div>
+                         <div className="text-2xl font-bold text-primary mb-1">{gameTeams.length}</div>
+                         <div className="text-xs text-muted-foreground">
+                           {confirmedGameTeams.length} confirmed
+                         </div>
+                       </div>
+                     );
+                   })}
+                 </div>
+               </CardContent>
+             </Card>
+          </TabsContent>
+
+          <TabsContent value="teams" className="space-y-6 pt-6">
+            <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-muted/30 p-4 rounded-lg">
+              <div className="flex flex-wrap gap-2 w-full md:w-auto">
+                <Select value={teamFilters.status || 'all'} onValueChange={(v) => setTeamFilters({...teamFilters, status: v==='all'?null:v})}>
+                  <SelectTrigger className="w-[140px]"><SelectValue placeholder="Status" /></SelectTrigger>
+                  <SelectContent><SelectItem value="all">All Status</SelectItem><SelectItem value="pending">Pending</SelectItem><SelectItem value="confirmed">Confirmed</SelectItem></SelectContent>
+                </Select>
+                <Select value={teamFilters.type || 'all'} onValueChange={(v) => setTeamFilters({...teamFilters, type: v==='all'?null:v})}>
+                  <SelectTrigger className="w-[140px]"><SelectValue placeholder="Type" /></SelectTrigger>
+                  <SelectContent><SelectItem value="all">All Types</SelectItem><SelectItem value="college">College</SelectItem><SelectItem value="open_category">Open</SelectItem></SelectContent>
+                </Select>
+                <Select value={teamFilters.game || 'all'} onValueChange={(v) => setTeamFilters({...teamFilters, game: v==='all'?null:v})}>
+                  <SelectTrigger className="w-[140px]"><SelectValue placeholder="Game" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Games</SelectItem>
+                    <SelectItem value="bgmi">🎮 BGMI</SelectItem>
+                    <SelectItem value="mobile_legends">🎮 MLBB</SelectItem>
+                    <SelectItem value="valorant">🎮 Valorant</SelectItem>
+                    <SelectItem value="cs_go">🎮 CS:GO</SelectItem>
+                    <SelectItem value="fifa">🎮 FIFA</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button onClick={() => handleExportData('teams')} className="w-full md:w-auto"><Download className="mr-2 h-4 w-4" /> Export Teams</Button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6">
+              {teams.map((team) => (
+                <Card key={team.id} className="overflow-hidden">
+                  <div className="bg-primary/5 px-6 py-4 border-b flex flex-col md:flex-row justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="text-xl font-bold">{team.team_name}</h3>
+                        {getStatusBadge(team.status)}
                       </div>
-                      <div className="text-sm text-muted-foreground mb-1">
-                        {stat.type}
+                      <div className="flex items-center gap-2 mb-1">
+                        <Gamepad2 className="h-4 w-4 text-blue-600" />
+                        <Badge className="bg-blue-100 text-blue-800 border-blue-300 font-bold text-sm px-3 py-1">
+                          🎮 {team.games?.name === 'bgmi' ? 'BGMI' : 
+                               team.games?.name === 'mobile_legends' ? 'Mobile Legends' :
+                               team.games?.name === 'cs_go' ? 'CS:GO' :
+                               team.games?.name ? team.games.name.charAt(0).toUpperCase() + team.games.name.slice(1).replace('_', ' ') : 'Unknown Game'}
+                        </Badge>
+                        <span className="text-sm text-muted-foreground">•</span>
+                        <Badge variant="outline" className="text-xs">
+                          {team.registration_type === 'college' ? '🏫 College' : '🌟 Open Category'}
+                        </Badge>
+                        {team.college_name && (
+                          <>
+                            <span className="text-sm text-muted-foreground">•</span>
+                            <span className="text-sm text-muted-foreground">{team.college_name}</span>
+                          </>
+                        )}
                       </div>
-                      <div className="flex justify-center gap-2 text-sm">
-                        <span className="text-green-600">{stat.confirmed}</span>
-                        <span className="text-yellow-600">{stat.pending}</span>
+                      {/* Game Category Highlight */}
+                      <div className="mt-2 p-2 bg-blue-50 rounded-lg border border-blue-200">
+                        <div className="flex items-center gap-2">
+                          <Gamepad2 className="h-3 w-3 text-blue-600" />
+                          <span className="text-xs font-bold text-blue-800 uppercase tracking-wide">
+                            Game Category: {team.games?.name === 'bgmi' ? 'BGMI' : 
+                                           team.games?.name === 'mobile_legends' ? 'Mobile Legends' :
+                                           team.games?.name === 'cs_go' ? 'CS:GO' :
+                                           team.games?.name ? team.games.name.charAt(0).toUpperCase() + team.games.name.slice(1).replace('_', ' ') : 'Unknown'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Select value={team.status} onValueChange={(v) => handleUpdateTeamStatus(team.id, v)}>
+                        <SelectTrigger className="w-32 h-9"><SelectValue /></SelectTrigger>
+                        <SelectContent><SelectItem value="pending">Pending</SelectItem><SelectItem value="confirmed">Confirmed</SelectItem><SelectItem value="rejected">Rejected</SelectItem></SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <CardContent className="p-6">
+                    <div className="grid lg:grid-cols-3 gap-8">
+                      {/* Main Players */}
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-bold uppercase tracking-widest text-primary flex justify-between items-center">
+                          <span>Main Squad</span>
+                          <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-800">
+                            {team.games?.name === 'bgmi' ? 'BGMI' : 
+                             team.games?.name === 'mobile_legends' ? 'Mobile Legends' :
+                             team.games?.name === 'cs_go' ? 'CS:GO' :
+                             team.games?.name ? team.games.name.charAt(0).toUpperCase() + team.games.name.slice(1).replace('_', ' ') : 'Unknown'}
+                          </Badge>
+                        </h4>
+                        <div className="space-y-2">
+                          {team.team_members?.filter((m:any) => !m.is_substitute).map((p:any) => (
+                            <div key={p.id} className="text-sm p-2 bg-muted/50 rounded border border-border/50">
+                              <span className="font-bold block">{p.ign || 'No IGN'}</span>
+                              <span className="text-[10px] text-muted-foreground uppercase font-mono">ID: {p.game_id || 'N/A'}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      {/* Substitutes */}
+                      <div className="space-y-3">
+                        <h4 className="text-xs font-bold uppercase tracking-widest text-orange-500 flex justify-between items-center">
+                          <span>Substitutes</span>
+                          <Badge variant="outline" className="text-xs">
+                            {team.substitutes} players
+                          </Badge>
+                        </h4>
+                        <div className="space-y-2">
+                          {team.team_members?.filter((m:any) => m.is_substitute).length > 0 ? (
+                            team.team_members?.filter((m:any) => m.is_substitute).map((p:any) => (
+                              <div key={p.id} className="text-sm p-2 bg-orange-500/5 rounded border border-orange-500/20">
+                                <span className="font-bold block">{p.ign || 'No IGN'}</span>
+                                <span className="text-[10px] text-muted-foreground uppercase font-mono">ID: {p.game_id || 'N/A'}</span>
+                              </div>
+                            ))
+                          ) : <p className="text-xs text-muted-foreground italic">No substitutes registered</p>}
+                        </div>
+                      </div>
+                      {/* Contact Info */}
+                      <div className="space-y-4">
+                        <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Point of Contact</h4>
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2 text-sm"><Users className="h-4 w-4 text-primary" /> <span>{team.captain_name} (Captain)</span></div>
+                          <div className="flex items-center gap-2 text-sm"><Mail className="h-4 w-4 text-primary" /> <span className="break-all">{team.captain_email}</span></div>
+                          <div className="flex items-center gap-2 text-sm"><Phone className="h-4 w-4 text-primary" /> <span>{team.captain_phone}</span></div>
+                        </div>
+                        <div className="pt-4 border-t">
+                          <p className="text-[10px] text-muted-foreground uppercase font-semibold">Registered On</p>
+                          <p className="text-xs">{new Date(team.created_at).toLocaleString()}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="sponsors" className="pt-6 space-y-6">
+             <div className="flex justify-between items-center bg-card p-4 rounded-lg border">
+                <h3 className="font-bold">Total Sponsors: {sponsors.sponsors.length}</h3>
+                <Button variant="outline" onClick={() => handleExportData('sponsors')} size="sm"><Download className="mr-2 h-4 w-4" /> Export CSV</Button>
+             </div>
+             <div className="grid gap-4">
+               {sponsors.sponsors.map((s: any) => (
+                 <Card key={s.id} className="p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                   <div>
+                     <div className="flex items-center gap-2">
+                       <h4 className="font-bold">{s.company_name}</h4>
+                       <Badge variant="secondary">{s.sponsorship_tiers?.name}</Badge>
+                     </div>
+                     <p className="text-sm text-muted-foreground">{s.contact_person} • {s.contact_email}</p>
+                   </div>
+                   <div className="flex items-center gap-3 w-full md:w-auto">
+                     <Select value={s.status} onValueChange={(v) => handleUpdateSponsorStatus(s.id, v)}>
+                        <SelectTrigger className="w-full md:w-32"><SelectValue /></SelectTrigger>
+                        <SelectContent><SelectItem value="pending">Pending</SelectItem><SelectItem value="contacted">Contacted</SelectItem><SelectItem value="confirmed">Confirmed</SelectItem></SelectContent>
+                     </Select>
+                     <div className="text-right min-w-[80px]">
+                       <div className="text-xs font-bold">₹{s.sponsorship_tiers?.price?.toLocaleString() || 'N/A'}</div>
+                     </div>
+                   </div>
+                 </Card>
+               ))}
+             </div>
+          </TabsContent>
+
+          <TabsContent value="visitors" className="pt-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Visitor Records</CardTitle>
+                <Button onClick={() => handleExportData('visitors')} size="sm"><Download className="mr-2 h-4 w-4" /> Export</Button>
+              </CardHeader>
+              <CardContent>
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {visitors.visitors.map((v: any) => (
+                    <div key={v.id} className="p-4 border rounded-lg bg-muted/20">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="font-bold">{v.full_name}</div>
+                        {getStatusBadge(v.status)}
+                      </div>
+                      <div className="text-xs text-muted-foreground space-y-1">
+                        <div className="flex items-center gap-1"><Mail className="h-3 w-3" /> {v.email}</div>
+                        <div className="flex items-center gap-1"><Phone className="h-3 w-3" /> {v.phone}</div>
+                      </div>
+                      <div className="mt-3 pt-3 border-t flex justify-end">
+                        <Select value={v.status} onValueChange={(val) => handleUpdateVisitorStatus(v.id, val)}>
+                          <SelectTrigger className="w-28 h-7 text-[10px]"><SelectValue /></SelectTrigger>
+                          <SelectContent><SelectItem value="confirmed">Confirmed</SelectItem><SelectItem value="cancelled">Cancelled</SelectItem></SelectContent>
+                        </Select>
                       </div>
                     </div>
                   ))}
                 </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  No data available
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview" className="flex items-center gap-2">
-              <Eye className="h-4 w-4" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="teams" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Teams
-              <Badge variant="secondary" className="ml-2">
-                {teams?.length || 0}
-              </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="sponsors" className="flex items-center gap-2">
-              <Trophy className="h-4 w-4" />
-              Sponsors
-              <Badge variant="secondary" className="ml-2">
-                {sponsors?.sponsors?.length || 0}
-              </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="visitors" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Visitors
-              <Badge variant="secondary" className="ml-2">
-                {stats?.find(s => s.type === 'visitor')?.total_registrations || 0}
-              </Badge>
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview">
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5 text-primary" />
-                    College Teams
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {loading ? (
-                    <div className="animate-pulse bg-muted rounded-lg h-20"></div>
-                  ) : (
-                    <>
-                      <div className="text-3xl font-bold text-foreground mb-2">
-                        {stats?.find(s => s.type === 'college')?.total_registrations || 0}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {stats?.find(s => s.type === 'college')?.confirmed || 0} confirmed
-                      </div>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Trophy className="h-5 w-5 text-orange-500" />
-                    Open Category
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {loading ? (
-                    <div className="animate-pulse bg-muted rounded-lg h-20"></div>
-                  ) : (
-                    <>
-                      <div className="text-3xl font-bold text-foreground mb-2">
-                        {stats?.find(s => s.type === 'open_category')?.total_registrations || 0}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {stats?.find(s => s.type === 'open_category')?.confirmed || 0} confirmed
-                      </div>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Building2 className="h-5 w-5 text-secondary" />
-                    Sponsors
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {loading ? (
-                    <div className="animate-pulse bg-muted rounded-lg h-20"></div>
-                  ) : (
-                    <>
-                      <div className="text-3xl font-bold text-foreground mb-2">
-                        {sponsors?.totals?.total_sponsors || 0}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {sponsors?.totals?.confirmed_sponsors || 0} confirmed
-                      </div>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Eye className="h-5 w-5 text-accent" />
-                    Visitors
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {loading ? (
-                    <div className="animate-pulse bg-muted rounded-lg h-20"></div>
-                  ) : (
-                    <>
-                      <div className="text-3xl font-bold text-foreground mb-2">
-                        {stats?.find(s => s.type === 'visitor')?.total_registrations || 0}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {stats?.find(s => s.type === 'visitor')?.confirmed || 0} confirmed
-                      </div>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="teams">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Users className="h-5 w-5 text-primary" />
-                    Team Registrations
-                  </div>
-                  <Button onClick={() => handleExportData('teams')} variant="outline" size="sm">
-                    <Download className="h-4 w-4 mr-2" />
-                    Export CSV
-                  </Button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="space-y-4">
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <div key={i} className="animate-pulse bg-muted rounded-lg h-20"></div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {teams.length === 0 ? (
-                      <div className="text-center py-12 text-muted-foreground">
-                        No team registrations yet
-                      </div>
-                    ) : (
-                      teams.map((team) => (
-                        <Card key={team.id} className="hover:shadow-lg transition-shadow">
-                          <CardContent className="p-6">
-                            <div className="flex justify-between items-start mb-4">
-                              <div>
-                                <h3 className="font-semibold text-lg">{team.team_name}</h3>
-                                {getStatusBadge(team.status)}
-                              </div>
-                              <Badge variant="outline">
-                                {team.registration_type === 'college' ? 'College' : 'Open'}
-                              </Badge>
-                            </div>
-                            
-                            <div className="grid grid-cols-2 gap-4 text-sm mb-2">
-                              <div>
-                                <span className="text-muted-foreground">Game:</span>
-                                <span className="font-medium ml-2">{team.game_name}</span>
-                              </div>
-                              <div>
-                                <span className="text-muted-foreground">College:</span>
-                                <span className="font-medium ml-2">{team.college_name || 'N/A'}</span>
-                              </div>
-                            </div>
-                            
-                            <div className="flex justify-between items-center text-sm mb-2">
-                              <div>
-                                <span className="text-muted-foreground">Captain:</span>
-                                <span className="font-medium ml-2">{team.captain_name}</span>
-                              </div>
-                              <div>
-                                <span className="text-muted-foreground">Players:</span>
-                                <span className="font-medium ml-2">{team.main_players}/{team.required_size}</span>
-                              </div>
-                            </div>
-                            
-                            <div className="flex justify-between items-center text-sm">
-                              <div>
-                                <span className="text-muted-foreground">Contact:</span>
-                                <span className="font-medium ml-2">{team.captain_email}</span>
-                              </div>
-                              <div>
-                                <span className="text-muted-foreground">Registered:</span>
-                                <span className="font-medium ml-2">
-                                  {new Date(team.created_at).toLocaleDateString()}
-                                </span>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="sponsors">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Trophy className="h-5 w-5 text-secondary" />
-                    Sponsor Registrations
-                  </div>
-                  <Button onClick={() => handleExportData('sponsors')} variant="outline" size="sm">
-                    <Download className="h-4 w-4 mr-2" />
-                    Export CSV
-                  </Button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="space-y-4">
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <div key={i} className="animate-pulse bg-muted rounded-lg h-20"></div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {sponsors.sponsors.length === 0 ? (
-                      <div className="text-center py-12 text-muted-foreground">
-                        No sponsor registrations yet
-                      </div>
-                    ) : (
-                      sponsors.sponsors.map((sponsor) => (
-                        <Card key={sponsor.id} className="hover:shadow-lg transition-shadow">
-                          <CardContent className="p-6">
-                            <div className="flex justify-between items-start mb-4">
-                              <div>
-                                <h3 className="font-semibold text-lg">{sponsor.company_name}</h3>
-                                {getStatusBadge(sponsor.status)}
-                              </div>
-                              <Badge variant="outline">
-                                {sponsor.tier_name || 'No Tier'}
-                              </Badge>
-                            </div>
-                            
-                            <div className="grid grid-cols-2 gap-4 text-sm mb-2">
-                              <div>
-                                <span className="text-muted-foreground">Contact:</span>
-                                <span className="font-medium ml-2">{sponsor.contact_person}</span>
-                              </div>
-                              <div>
-                                <span className="text-muted-foreground">Email:</span>
-                                <span className="font-medium ml-2">{sponsor.contact_email}</span>
-                              </div>
-                            </div>
-                            
-                            <div className="flex justify-between items-center text-sm mb-2">
-                              <div>
-                                <span className="text-muted-foreground">Phone:</span>
-                                <span className="font-medium ml-2">{sponsor.contact_phone}</span>
-                              </div>
-                              <div>
-                                <span className="text-muted-foreground">Registered:</span>
-                                <span className="font-medium ml-2">
-                                  {new Date(sponsor.created_at).toLocaleDateString()}
-                                </span>
-                              </div>
-                            </div>
-                            
-                            {sponsor.message && (
-                              <div className="mt-4 p-3 bg-muted rounded-lg">
-                                <p className="text-sm text-muted-foreground">
-                                  {sponsor.message}
-                                </p>
-                              </div>
-                            )}
-                          </CardContent>
-                        </Card>
-                      ))
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="visitors">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Users className="h-5 w-5 text-accent" />
-                    Visitor Registrations
-                  </div>
-                  <Button onClick={() => handleExportData('visitors')} variant="outline" size="sm">
-                    <Download className="h-4 w-4 mr-2" />
-                    Export CSV
-                  </Button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="space-y-4">
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <div key={i} className="animate-pulse bg-muted rounded-lg h-20"></div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {stats?.find(s => s.type === 'visitor')?.total_registrations === 0 ? (
-                      <div className="text-center py-12 text-muted-foreground">
-                        No visitor registrations yet
-                      </div>
-                    ) : (
-                      <div className="text-center py-12 text-muted-foreground">
-                        Visitor registrations data will appear here once registrations are submitted
-                      </div>
-                    )}
-                  </div>
-                )}
               </CardContent>
             </Card>
           </TabsContent>

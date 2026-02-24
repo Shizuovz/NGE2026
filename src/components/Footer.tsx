@@ -29,7 +29,7 @@ const Footer = () => {
               </h3>
             </div>
             <p className="text-background/60 text-sm leading-relaxed mb-4">
-              Organized by the Nagaland E-Sports Society (NESS). Building the future of competitive gaming in Northeast India.
+              Organized by Nagaland E-Sports Society (NESS). Building the future of competitive gaming in Northeast India.
             </p>
             <div className="space-y-2 text-sm text-background/60">
               <p className="flex items-center gap-2"><CalendarDays className="h-4 w-4" /> June 2026</p>

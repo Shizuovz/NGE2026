@@ -50,11 +50,11 @@ const Navbar = () => {
           <img 
             src="/NGE.png" 
             alt="NGE 2026 Logo" 
-            className={`h-16 w-auto transition-all duration-300 ${
+            className={`h-8 w-auto transition-all duration-300 ${
               scrolled ? 'opacity-100' : 'opacity-90'
             }`}
           />
-          {/* <div className="flex flex-col leading-tight">
+          <div className="flex flex-col leading-tight">
             <span className={`text-lg font-bold bg-gradient-to-r from-primary to-purple-500 bg-clip-text text-transparent ${
               scrolled ? 'text-lg' : 'text-xl'
             }`}>
@@ -65,7 +65,7 @@ const Navbar = () => {
             }`}>
               2026
             </span>
-          </div> */}
+          </div>
         </a>
 
         {/* Desktop Navigation */}

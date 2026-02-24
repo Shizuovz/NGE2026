@@ -61,7 +61,6 @@ export const supabaseApiService = {
       const { data, error } = await supabase
         .from('sponsorship_tiers')
         .select('*')
-        .eq('is_active', true)
         .order('price', { ascending: false });
       
       if (error) throw error;
@@ -85,28 +84,12 @@ export const supabaseApiService = {
         throw new Error('Invalid registration type');
       }
 
-      // Get the next counter
-      let counterQuery;
-      if (registrationType === 'sponsor') {
-        counterQuery = supabase
-          .from('sponsor_registrations')
-          .select('registration_id');
-      } else if (registrationType === 'visitor') {
-        counterQuery = supabase
-          .from('visitor_registrations')
-          .select('registration_id');
-      } else {
-        counterQuery = supabase
-          .from('teams')
-          .select('registration_id')
-          .eq('registration_type', registrationType);
-      }
-
-      const { data: existingIds, error } = await counterQuery;
-      if (error) throw error;
-
-      const counter = (existingIds?.length || 0) + 1;
-      const registrationId = `NGE2026-${typePrefix}-${counter.toString().padStart(5, '0')}`;
+      // Generate unique ID with timestamp and random component to avoid collisions
+      const timestamp = Date.now();
+      const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+      const counter = timestamp.toString().slice(-6); // Last 6 digits of timestamp
+      
+      const registrationId = `NGE2026-${typePrefix}-${counter}-${random}`;
       
       return registrationId;
     } catch (error) {
@@ -342,16 +325,23 @@ export const supabaseApiService = {
           *,
           games(name, team_size),
           colleges(name),
-          team_members(id, is_substitute)
+          team_members!inner(
+            id,
+            ign,
+            game_id,
+            is_substitute
+          )
         `)
         .in('registration_type', ['college', 'open_category']);
 
       if (filters.status) {
         query = query.eq('status', filters.status);
       }
+
       if (filters.game) {
         query = query.eq('games.name', filters.game);
       }
+
       if (filters.type) {
         query = query.eq('registration_type', filters.type);
       }
@@ -360,13 +350,20 @@ export const supabaseApiService = {
       
       if (error) throw error;
 
-      // Process the data to include member counts
-      return data?.map(team => ({
-        ...team,
-        registered_players: team.team_members?.length || 0,
-        main_players: team.team_members?.filter((m: any) => !m.is_substitute).length || 0,
-        substitutes: team.team_members?.filter((m: any) => m.is_substitute).length || 0
-      })) || [];
+      // Process the data to include member counts and details
+      return data?.map(team => {
+        const mainPlayers = team.team_members?.filter((m: any) => !m.is_substitute) || [];
+        const substitutePlayers = team.team_members?.filter((m: any) => m.is_substitute) || [];
+        
+        return {
+          ...team,
+          team_members: team.team_members || [],
+          main_players: mainPlayers.length,
+          substitutes: substitutePlayers.length,
+          main_player_details: mainPlayers,
+          substitute_player_details: substitutePlayers
+        };
+      }) || [];
 
     } catch (error) {
       throw new Error(handleSupabaseError(error));
@@ -402,6 +399,91 @@ export const supabaseApiService = {
 
       return { sponsors, totals };
 
+    } catch (error) {
+      throw new Error(handleSupabaseError(error));
+    }
+  },
+
+  async updateSponsorStatus(sponsorId: number, status: string) {
+    try {
+      const { data, error } = await supabase
+        .from('sponsor_registrations')
+        .update({ 
+          status: status,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', sponsorId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      throw new Error(handleSupabaseError(error));
+    }
+  },
+
+  async updateTeamStatus(teamId: number, status: string) {
+    try {
+      const { data, error } = await supabase
+        .from('teams')
+        .update({ 
+          status: status,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', teamId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      throw new Error(handleSupabaseError(error));
+    }
+  },
+
+  async getVisitorStats(filters: any = {}) {
+    try {
+      let query = supabase
+        .from('visitor_registrations')
+        .select('*');
+
+      if (filters.status) {
+        query = query.eq('status', filters.status);
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
+      
+      if (error) throw error;
+
+      const visitors = data || [];
+      const totals = {
+        total_visitors: visitors.length,
+        confirmed_visitors: visitors.filter(v => v.status === 'confirmed').length,
+        cancelled_visitors: visitors.filter(v => v.status === 'cancelled').length
+      };
+
+      return { visitors, totals };
+
+    } catch (error) {
+      throw new Error(handleSupabaseError(error));
+    }
+  },
+
+  async updateVisitorStatus(visitorId: number, status: string) {
+    try {
+      const { data, error } = await supabase
+        .from('visitor_registrations')
+        .update({ 
+          status: status,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', visitorId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
     } catch (error) {
       throw new Error(handleSupabaseError(error));
     }
