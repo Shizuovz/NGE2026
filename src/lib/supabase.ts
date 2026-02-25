@@ -7,6 +7,7 @@ const supabaseServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
 console.log('Supabase URL:', supabaseUrl);
 console.log('Supabase Anon Key:', supabaseAnonKey ? 'Present' : 'Missing');
 console.log('Supabase Service Key:', supabaseServiceKey ? 'Present' : 'Missing');
+console.log('Deployment timestamp:', new Date().toISOString());
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables. Please check your .env file.');
